@@ -1662,7 +1662,7 @@ check_rule_28661_linux() {
     info_message "Checking rule 28661_linux: password policy with pam_pwquality"
 
     debug_message "Checking if libpam-pwquality is installed"
-    if ! apt list --installed libpam-pwquality >/dev/null 2>&1; then
+    if ! dpkg -s libpam-pwquality >/dev/null 2>&1; then
         error_message "libpam-pwquality is not installed"
         return 1
     fi
@@ -3368,7 +3368,7 @@ fix_rule_28661_linux() {
     info_message "Applying fix for rule 28661_linux: Configure password policy with pam_pwquality"
 
     print_step 1 "Installing libpam-pwquality if needed"
-    if ! apt list --installed libpam-pwquality >/dev/null 2>&1; then
+    if ! dpkg -s libpam-pwquality >/dev/null 2>&1; then
         debug_message "Updating package list"
         if ! maybe_sudo apt update >/dev/null 2>&1; then
             error_message "Failed to update package list"
@@ -3383,7 +3383,7 @@ fix_rule_28661_linux() {
 
     print_step 2 "Backing up pwquality configuration"
     local backup_file="/etc/security/pwquality.conf.bak-$(date +%F-%T)"
-    if ! maybe_sudo cp /etc/security/pwquality.conf "$backup_file" >/dev/null 2>&1; then
+    if ! maybe_sudo cp /etc/security/pwquality.conf "$backup_file"; then
         error_message "Failed to backup pwquality configuration"
         return 1
     fi
