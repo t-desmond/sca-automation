@@ -1304,7 +1304,7 @@ check_rule_28618_linux() {
         return 1
     fi
 
-    success_message "systemd-journald persistent logging configured successfully"
+    success_message "systemd-journald persistent logging configured correctly"
     return 0
 }
 
@@ -1322,7 +1322,7 @@ check_rule_28623_linux() {
         return 1
     fi
 
-    success_message "RSyslog file permissions configured successfully"
+    success_message "RSyslog file permissions configured correctly"
     return 0
 }
 
@@ -1662,7 +1662,7 @@ check_rule_28661_linux() {
     info_message "Checking rule 28661_linux: password policy with pam_pwquality"
 
     debug_message "Checking if libpam-pwquality is installed"
-    if ! dpkg -l | grep -q libpam-pwquality; then
+    if ! apt list --installed libpam-pwquality >/dev/null 2>&1; then
         error_message "libpam-pwquality is not installed"
         return 1
     fi
@@ -1827,8 +1827,7 @@ fix_rule_28523_linux() {
     error_message "Failed to remount /dev/shm. Please check the fstab entry and mount status."
     return 1
   fi
-  
-  info_message "Successfully remounted /dev/shm."
+
   success_message "Successfully secured /dev/shm configuration"
   return 0
 }
@@ -2019,14 +2018,8 @@ fix_rule_28574_linux() {
   fi
   maybe_sudo apt autoremove -y >/dev/null 2>&1 || warn_message "apt autoremove returned non-zero"
 
-  print_step 3 "Verify removal"
-  if dpkg-query -s iptables-persistent 2>/dev/null | grep -qi "is not installed"; then
-    success_message "iptables-persistent removed successfully"
-    return 0
-  else
-    error_message "iptables-persistent still installed"
-    return 1
-  fi
+  success_message "iptables-persistent removed successfully"
+  return 0
 }
 
 # 28575: Setup and enable UFW firewall
@@ -2223,8 +2216,7 @@ fix_rule_28593_linux() {
         return 1
     fi
 
-    success_message "audit_backlog_limit configured successfully"
-    info_message "Reboot is required to apply the changes"
+    success_message "audit_backlog_limit configured successfully, reboot required to apply changes"
     return 0
 }
 
@@ -2244,11 +2236,10 @@ fix_rule_28597_linux() {
         return 1
     fi
 
-    success_message "Audit rules for sudoers files monitoring configured successfully"
     if [[ $(maybe_sudo auditctl -s | grep "enabled") =~ "2" ]]; then
-        info_message "Reboot required to fully activate audit rules."
+        success_message "Audit rules for sudoers files monitoring configured successfully, reboot required to apply the changes"
     else
-        info_message "Rules loaded successfully without reboot."
+        success_message "Audit rules for sudoers files monitoring configured successfully"
     fi
     return 0
 }
@@ -2303,9 +2294,9 @@ EOF
     fi
 
     if [[ $(maybe_sudo auditctl -s | grep "enabled") =~ "2" ]]; then
-        info_message "Audit rules for sudo privilege escalation monitoring configured successfully, reboot required to apply the changes"
+        success_message "Audit rules for sudo privilege escalation monitoring configured successfully, reboot required to apply the changes"
     else
-        info_message "Audit rules for sudo privilege escalation monitoring configured successfully"
+        success_message "Audit rules for sudo privilege escalation monitoring configured successfully"
     fi
     return 0
 }
@@ -2362,9 +2353,9 @@ EOF
     fi
 
     if [[ $(maybe_sudo auditctl -s | grep "enabled") =~ "2" ]]; then
-        info_message "Audit rules for system time changes configured successfully, reboot required to apply the changes"
+        success_message "Audit rules for system time changes configured successfully, reboot required to apply the changes"
     else
-        info_message "Audit rules for system time changes configured successfully"
+        success_message "Audit rules for system time changes configured successfully"
     fi
     return 0
 }
@@ -2397,9 +2388,9 @@ fix_rule_28601_linux() {
     fi
 
     if [[ $(maybe_sudo auditctl -s | grep "enabled") =~ "2" ]]; then
-        info_message "Audit rules for user/group files configured successfully, reboot required to apply the changes"
+        success_message "Audit rules for user/group files configured successfully, reboot required to apply the changes"
     else
-        info_message "Audit rules for user/group files configured successfully"
+        success_message "Audit rules for user/group files configured successfully"
     fi
     return 0
 }
@@ -2432,9 +2423,9 @@ fix_rule_28602_linux() {
     fi
 
     if [[ $(maybe_sudo auditctl -s | grep "enabled") =~ "2" ]]; then
-        info_message "Audit rules for session initiation events configured successfully, reboot required to apply the changes"
+        success_message "Audit rules for session initiation events configured successfully, reboot required to apply the changes"
     else
-        info_message "Audit rules for session initiation events configured successfully"
+        success_message "Audit rules for session initiation events configured successfully"
     fi
     return 0
 }
@@ -2486,14 +2477,8 @@ fix_rule_28605_linux() {
         return 1
     fi
 
-    print_step 3 "Checking if immutable mode is now active"
-    if maybe_sudo auditctl -s 2>/dev/null | grep -q "enabled 2"; then
-        success_message "Audit immutable mode configured successfully"
-        return 0
-    else
-        warn_message "Audit immutable mode rule created but may require reboot to take effect"
-        return 0
-    fi
+    success_message "Audit immutable mode configured successfully, reboot required to apply the changes"
+    return 0
 }
 
 # 28611: Audit Tools Ownership Configuration
@@ -2641,6 +2626,89 @@ fix_rule_28623_linux() {
     fi
 
     success_message "RSyslog file permissions configured successfully"
+    return 0
+}
+
+fix_rule_28626_linux() {
+    info_message "Applying fix for rule 28626_linux: Secure /etc/crontab permissions and ownership"
+
+    if [ ! -f "/etc/crontab" ]; then
+        info_message "/etc/crontab does not exist, skipping"
+        return 0
+    fi
+
+    print_step 1 "Setting ownership to root:root"
+    if ! maybe_sudo chown root:root /etc/crontab; then
+        error_message "Failed to set ownership of /etc/crontab"
+        return 1
+    fi
+
+    print_step 2 "Setting permissions to 600"
+    if ! maybe_sudo chmod og-rwx /etc/crontab; then
+        error_message "Failed to set permissions of /etc/crontab"
+        return 1
+    fi
+
+    success_message "/etc/crontab permissions and ownership secured successfully"
+    return 0
+}
+
+# 28627: Secure /etc/cron.hourly Directory Permissions and Ownership
+fix_rule_28627_linux() {
+    info_message "Applying fix for rule 28627_linux: Secure /etc/cron.hourly directory permissions and ownership"
+
+    if [ ! -d "/etc/cron.hourly" ]; then
+        info_message "/etc/cron.hourly does not exist, skipping"
+        return 0
+    fi
+
+    print_step 1 "Setting ownership to root:root"
+    if ! maybe_sudo chown root:root /etc/cron.hourly; then
+        error_message "Failed to set ownership of /etc/cron.hourly"
+        return 1
+    fi
+
+    print_step 2 "Setting permissions to 700"
+    if ! maybe_sudo chmod og-rwx /etc/cron.hourly; then
+        error_message "Failed to set permissions of /etc/cron.hourly"
+        return 1
+    fi
+
+    success_message "/etc/cron.hourly directory permissions and ownership secured successfully"
+    return 0
+}
+
+# 28632: Configure cron allow/deny
+fix_rule_28632_linux() {
+    info_message "Applying fix for rule 28632_linux: cron allow/deny configuration"
+
+    print_step 1 "Removing /etc/cron.deny"
+    if [ -f /etc/cron.deny ]; then
+        if ! maybe_sudo rm -f /etc/cron.deny; then
+            error_message "Failed to remove /etc/cron.deny"
+            return 1
+        fi
+    fi
+
+    print_step 2 "Creating /etc/cron.allow"
+    if [ ! -f /etc/cron.allow ]; then
+        if ! maybe_sudo touch /etc/cron.allow; then
+            error_message "Failed to create /etc/cron.allow"
+            return 1
+        fi
+    fi
+
+    print_step 3 "Setting permissions and ownership on /etc/cron.allow"
+    if ! maybe_sudo chmod 0640 /etc/cron.allow; then
+        error_message "Failed to set permissions on /etc/cron.allow"
+        return 1
+    fi
+    if ! maybe_sudo chown root:root /etc/cron.allow; then
+        error_message "Failed to set ownership on /etc/cron.allow"
+        return 1
+    fi
+
+    success_message "Cron configuration fixed"
     return 0
 }
 
@@ -3300,7 +3368,7 @@ fix_rule_28661_linux() {
     info_message "Applying fix for rule 28661_linux: Configure password policy with pam_pwquality"
 
     print_step 1 "Installing libpam-pwquality if needed"
-    if ! dpkg -l | grep -q libpam-pwquality; then
+    if ! apt list --installed libpam-pwquality >/dev/null 2>&1; then
         debug_message "Updating package list"
         if ! maybe_sudo apt update >/dev/null 2>&1; then
             error_message "Failed to update package list"
@@ -3441,8 +3509,7 @@ fix_rule_28666_linux() {
 # Run all SCA checks and populate failed/passed arrays
 run_sca_checks() {
     info_message "Running SCA checks for $OS_TYPE..."
-    
-    # Reset counters and arrays
+
     TESTS_PASSED=0
     TESTS_FAILED=0
     FAILED_CHECKS=""
@@ -3532,89 +3599,6 @@ verify_sca_fixes() {
     info_message "Verification complete: $fixed_count checks were successfully fixed"
 }
 
-fix_rule_28626_linux() {
-    info_message "Applying fix for rule 28626_linux: Secure /etc/crontab permissions and ownership"
-
-    if [ ! -f "/etc/crontab" ]; then
-        info_message "/etc/crontab does not exist, skipping"
-        return 0
-    fi
-
-    print_step 1 "Setting ownership to root:root"
-    if ! maybe_sudo chown root:root /etc/crontab; then
-        error_message "Failed to set ownership of /etc/crontab"
-        return 1
-    fi
-
-    print_step 2 "Setting permissions to 600"
-    if ! maybe_sudo chmod og-rwx /etc/crontab; then
-        error_message "Failed to set permissions of /etc/crontab"
-        return 1
-    fi
-
-    success_message "/etc/crontab permissions and ownership secured successfully"
-    return 0
-}
-
-# 28627: Secure /etc/cron.hourly Directory Permissions and Ownership
-fix_rule_28627_linux() {
-    info_message "Applying fix for rule 28627_linux: Secure /etc/cron.hourly directory permissions and ownership"
-
-    if [ ! -d "/etc/cron.hourly" ]; then
-        info_message "/etc/cron.hourly does not exist, skipping"
-        return 0
-    fi
-
-    print_step 1 "Setting ownership to root:root"
-    if ! maybe_sudo chown root:root /etc/cron.hourly; then
-        error_message "Failed to set ownership of /etc/cron.hourly"
-        return 1
-    fi
-
-    print_step 2 "Setting permissions to 700"
-    if ! maybe_sudo chmod og-rwx /etc/cron.hourly; then
-        error_message "Failed to set permissions of /etc/cron.hourly"
-        return 1
-    fi
-
-    success_message "/etc/cron.hourly directory permissions and ownership secured successfully"
-    return 0
-}
-
-# 28632: Configure cron allow/deny
-fix_rule_28632_linux() {
-    info_message "Applying fix for rule 28632_linux: cron allow/deny configuration"
-
-    print_step 1 "Removing /etc/cron.deny"
-    if [ -f /etc/cron.deny ]; then
-        if ! maybe_sudo rm -f /etc/cron.deny; then
-            error_message "Failed to remove /etc/cron.deny"
-            return 1
-        fi
-    fi
-
-    print_step 2 "Creating /etc/cron.allow"
-    if [ ! -f /etc/cron.allow ]; then
-        if ! maybe_sudo touch /etc/cron.allow; then
-            error_message "Failed to create /etc/cron.allow"
-            return 1
-        fi
-    fi
-
-    print_step 3 "Setting permissions and ownership on /etc/cron.allow"
-    if ! maybe_sudo chmod 0640 /etc/cron.allow; then
-        error_message "Failed to set permissions on /etc/cron.allow"
-        return 1
-    fi
-    if ! maybe_sudo chown root:root /etc/cron.allow; then
-        error_message "Failed to set ownership on /etc/cron.allow"
-        return 1
-    fi
-
-    success_message "Cron configuration fixed"
-    return 0
-}
-
 #######################################
 # Main execution functions
 #######################################
@@ -3662,8 +3646,7 @@ parse_arguments() {
                 ;;
         esac
     done
-    
-    # Validate arguments
+
     case "$LOG_LEVEL" in
         DEBUG|INFO|WARNING|ERROR) ;;
         *) 
@@ -3700,23 +3683,18 @@ main() {
     info_message "Starting Wazuh SCA automation (v$SCRIPT_VERSION)"
     info_message "OS: $OS_TYPE, Log Level: $LOG_LEVEL"
     
-    # Run initial SCA checks
     run_sca_checks
-    
-    # Apply fixes if there are failures
+
     if [ "$TESTS_FAILED" -gt 0 ]; then
         run_sca_fixes
         
-        # Verify fixes were applied successfully
         verify_sca_fixes
     else
         success_message "All SCA checks passed - no fixes needed!"
     fi
     
-    # Show final summary
     show_summary
     
-    # Exit with appropriate code
     if [ "$TESTS_FAILED" -gt 0 ]; then
         exit 1
     else
